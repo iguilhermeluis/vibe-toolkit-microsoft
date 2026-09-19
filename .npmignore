@@ -1,0 +1,20 @@
+# Development source and tooling
+src/
+test/
+coverage/
+tsconfig.json
+tsup.config.ts
+
+# Local and editor files
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+
+# Package manager artifacts
+node_modules/
+package-lock.json

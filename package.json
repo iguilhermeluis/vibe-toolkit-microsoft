@@ -1,0 +1,68 @@
+{
+  "name": "@vibe-toolkit/vibe-toolkit-microsoft",
+  "version": "0.1.0",
+  "description": "A unified Microsoft toolkit for web applications with Entra ID authentication, Microsoft Graph, SharePoint, PnPjs and Copilot Studio integration.",
+  "keywords": [
+    "Microsoft",
+    "Entra",
+    "ID",
+    "Azure",
+    "AD",
+    "MSAL",
+    "Microsoft",
+    "Graph",
+    "SharePoint",
+    "PnPjs",
+    "Copilot",
+    "Studio",
+    "authentication",
+    "TypeScript"
+  ],
+  "homepage": "https://github.com/iguilhermeluis/vibe-toolkit-microsoft#readme",
+  "bugs": {
+    "url": "https://github.com/iguilhermeluis/vibe-toolkit-microsoft/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iguilhermeluis/vibe-toolkit-microsoft.git"
+  },
+  "license": "MIT",
+  "author": "Guilherme Faustino",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^5.22.0",
+    "@microsoft/agents-copilotstudio-client": "^1.8.1",
+    "@pnp/msaljsclient": "^4.21.0",
+    "@pnp/queryable": "^4.21.0",
+    "@pnp/sp": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3",
+    "vitest": "^5.0.1"
+  }
+}
