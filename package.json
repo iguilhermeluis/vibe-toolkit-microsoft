@@ -1,6 +1,6 @@
 {
   "name": "@vibe-toolkit/vibe-toolkit-microsoft",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A unified Microsoft toolkit for web applications with Entra ID authentication, Microsoft Graph, SharePoint, PnPjs and Copilot Studio integration.",
   "keywords": [
     "Microsoft",
@@ -31,6 +31,8 @@
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
+  "unpkg": "./dist/index.global.js",
+  "jsdelivr": "./dist/index.global.js",
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "engines": {

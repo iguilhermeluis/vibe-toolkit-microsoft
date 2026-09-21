@@ -17,6 +17,29 @@
 npm install @vibe-toolkit/vibe-toolkit-microsoft
 ```
 
+## CDN
+
+Use a pinned package version in browser applications without a bundler:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@vibe-toolkit/vibe-toolkit-microsoft@0.1.1/dist/index.global.js"></script>
+<!-- Or: https://unpkg.com/@vibe-toolkit/vibe-toolkit-microsoft@0.1.1/dist/index.global.js -->
+```
+
+The script exposes the `VibeToolkitMicrosoft` global:
+
+```html
+<script>
+	const client = VibeToolkitMicrosoft.createVibeMicrosoftClient({
+		auth: {
+			clientId: "your-client-id",
+			tenantId: "your-tenant-id",
+			redirectUri: window.location.origin,
+		},
+	});
+</script>
+```
+
 ## Configure and use
 
 ```ts
