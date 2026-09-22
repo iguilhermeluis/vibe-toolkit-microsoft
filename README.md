@@ -5,146 +5,185 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-ready-blue?logo=typescript)](https://www.typescriptlang.org/)
 
-> A TypeScript package for Microsoft integrations. The public API is currently under active development.
+Framework-independent browser toolkit for Microsoft Entra ID, SharePoint/PnPjs and Copilot Studio. Distributed as npm ESM, a standalone browser ESM bundle, and a classic script bundle.
 
-## Overview
+## Requirements and supported scope
 
-`@vibe-toolkit/vibe-toolkit-microsoft` will provide a consistent foundation for building modern web applications that integrate with Microsoft services.
+- Modern browsers with ES2022, Web Crypto, fetch, streams and BroadcastChannel; HTTPS (HTTP localhost for development).
+- Node >=22.12 for package installation/build tools. Authentication runs in the browser, not during SSR. Importing the npm package during SSR is supported.
+- Microsoft public cloud and delegated user authentication. App-only secrets, sovereign clouds, cross-origin iframe authentication and automatic SPFx/Teams SSO are not implemented by this wrapper. Use the host's supported authentication adapter through `TokenProvider` where appropriate.
+- An Entra SPA app registration with the exact callback URL and the required delegated permissions/consent. A successful build does not validate tenant policy, CORS, permissions or a published agent.
 
-## Installation
+## npm
 
-```bash
+```sh
 npm install @vibe-toolkit/vibe-toolkit-microsoft
 ```
 
-## CDN
+```ts
+import { createVibeMicrosoftClient } from '@vibe-toolkit/vibe-toolkit-microsoft';
 
-Use a pinned package version in browser applications without a bundler:
+const client = createVibeMicrosoftClient({
+  auth: {
+    clientId: 'YOUR_APPLICATION_ID',
+    tenantId: 'YOUR_TENANT_ID',
+    redirectUri: new URL('/auth/callback.html', location.origin).href,
+  },
+  sharePoint: {
+    siteUrl: 'https://contoso.sharepoint.com/sites/operations',
+    lists: { requests: { name: 'Service requests' } },
+  },
+  copilot: {
+    environmentId: 'YOUR_ENVIRONMENT_ID',
+    schemaName: 'YOUR_PUBLISHED_AGENT_SCHEMA_NAME',
+  },
+});
 
-```html
-<script src="https://cdn.jsdelivr.net/npm/@vibe-toolkit/vibe-toolkit-microsoft@0.1.1/dist/index.global.js"></script>
-<!-- Or: https://unpkg.com/@vibe-toolkit/vibe-toolkit-microsoft@0.1.1/dist/index.global.js -->
+await client.initialize(); // During startup, before enabling sign-in buttons.
+// In a user click handler:
+await client.login();
 ```
 
-The script exposes the `VibeToolkitMicrosoft` global:
+Only configure the integrations you need. IDs are public configuration; never put client secrets or permanent access tokens in frontend code.
+
+## CDN
+
+Use the exact version you published; these examples target 0.1.2. Local changes do not update npm or CDN until you publish a new, unused version.
 
 ```html
+<script src="https://cdn.jsdelivr.net/npm/@vibe-toolkit/vibe-toolkit-microsoft@0.1.2/dist/index.global.js"
+        crossorigin="anonymous"></script>
 <script>
-	const client = VibeToolkitMicrosoft.createVibeMicrosoftClient({
-		auth: {
-			clientId: "your-client-id",
-			tenantId: "your-tenant-id",
-			redirectUri: window.location.origin,
-		},
-	});
+  const { createVibeMicrosoftClient } = VibeToolkitMicrosoft;
+  // Use the same configuration and API as the npm example.
 </script>
 ```
 
-## Configure and use
+For native browser modules:
 
-```ts
-import { createVibeMicrosoftClient } from "@vibe-toolkit/vibe-toolkit-microsoft";
+```html
+<script type="module">
+  import { createVibeMicrosoftClient } from
+    'https://cdn.jsdelivr.net/npm/@vibe-toolkit/vibe-toolkit-microsoft@0.1.2/dist/index.browser.js';
+</script>
+```
 
-const client = createVibeMicrosoftClient({
-	auth: {
-		clientId: import.meta.env.VITE_ENTRA_CLIENT_ID,
-		tenantId: import.meta.env.VITE_ENTRA_TENANT_ID,
-		redirectUri: window.location.origin,
-	},
-	sharePoint: {
-		siteUrl: "https://contoso.sharepoint.com/sites/operations",
-		lists: {
-			requests: { name: "Service requests" },
-		},
-	},
-	copilot: {
-		agentId: import.meta.env.VITE_COPILOT_AGENT_ID,
-	},
+UNPKG can serve the same versioned paths. `dist/index.js` is the npm entry and requires a bundler; use `index.browser.js` for direct browser imports. Both browser bundles include their dependencies. Do not load both variants on one page.
+
+Each build generates `dist/integrity.json` with SHA-384 values. When publishing, add the matching `integrity` value to classic script tags and use `crossorigin="anonymous"`. Serve versioned assets with immutable caching. CSP must permit the selected script host and the Microsoft endpoints used by your application; avoid wildcard policies.
+
+## Required authentication callback (MSAL 5)
+
+The callback page **and its scripts must be served from your application's own origin**, even when the main toolkit comes from CDN. Copy `dist/redirect-bridge.global.js` to your application's public assets, together with `THIRD-PARTY-NOTICES.txt`. Create `/auth/callback.html`:
+
+```html
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Signing in</title></head>
+<body>
+  <p id="status">Completing sign-in…</p>
+  <script src="/auth/redirect-bridge.global.js"></script>
+  <script src="/auth/callback.js"></script>
+</body>
+</html>
+```
+
+Contents of the same-origin `/auth/callback.js`:
+
+```js
+VibeToolkitRedirectBridge.broadcastResponseToMainFrame().catch(() => {
+  document.getElementById('status').textContent = 'Sign-in could not be completed. Close this window and try again.';
 });
-
-const requestsList = client.getList("requests");
-
-console.log(requestsList.name); // "Service requests"
 ```
 
-Use environment variables for public browser configuration such as the Entra application ID, tenant ID, and Copilot agent ID. Do not include client secrets in frontend applications.
+With a bundler, alternatively import `broadcastResponseToMainFrame` from `@vibe-toolkit/vibe-toolkit-microsoft/redirect-bridge` in a dedicated callback entry. Do not load the application router or initialize another MSAL client on this page.
 
-`createVibeMicrosoftClient` validates and exposes configuration. Microsoft Entra authentication, Copilot conversations, and SharePoint list reads and writes will be introduced as separate APIs after the authenticated session is implemented.
+Register its exact URL as a **SPA redirect URI** in Entra. Serve the callback with `Cache-Control: no-store`, without `Cross-Origin-Opener-Policy`. Do not log or display its query/hash. The toolkit uses this callback for login and popup logout. [Microsoft redirect bridge guidance](https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-browser/docs/redirect-bridge.md).
 
-## API status
+## Tokens and consent
 
-Available now:
+`getAccessToken(scopes)` is silent. If consent, MFA or another interaction is required, it propagates the MSAL error; it never opens a background popup. Show a button whose click calls `acquireTokenInteractive(scopes)`, then retry the operation. You can import `InteractionRequiredAuthError` from the toolkit.
 
-- `createVibeMicrosoftClient`, which validates the Entra ID, SharePoint, and Copilot configuration.
-- `client.getList(key)`, which resolves a named SharePoint list configuration.
+Request each resource separately:
 
-Not implemented yet:
+| Resource | Scopes | Entra setup |
+| --- | --- | --- |
+| Graph | `https://graph.microsoft.com/User.Read` (default login) | Microsoft Graph delegated permissions |
+| SharePoint REST | `https://contoso.sharepoint.com/.default` (default SharePoint behavior) | SharePoint delegated permissions, e.g. `AllSites.Read` for reads |
+| Copilot | SDK-derived `https://api.powerplatform.com/.default` | Power Platform delegated `CopilotStudio.Copilot.Invoke`, published agent and user access |
 
-- Microsoft Entra sign-in and token acquisition.
-- Copilot Studio conversations.
-- SharePoint list reads and writes.
-
-## Planned SharePoint access
-
-After authentication is implemented, the client will expose the native PnPjs `SPFI` interface for advanced scenarios. This API is planned and is not available in the current release:
+`.default` uses permissions configured and consented for that resource; it does not grant access on its own. Follow least privilege. Consent requirements depend on tenant policy. Graph `Sites.Read.All` is not a SharePoint REST permission.
 
 ```ts
-await client.initialize();
+// Each interactive call belongs to a separate user action.
+await client.acquireTokenInteractive(['https://contoso.sharepoint.com/.default']);
+const items = await client.getListItems('requests');
 
-const sp = client.getSharePoint(); // SPFI
-const requestsList = client.getList("requests");
-
-const items = await sp.web.lists
-	.getByTitle(requestsList.name)
-	.items();
+const token = await client.getAccessToken(['https://graph.microsoft.com/User.Read']);
+const response = await fetch('https://graph.microsoft.com/v1.0/me', {
+  headers: { Authorization: `Bearer ${token}` },
+});
+if (!response.ok) throw new Error(`Graph failed: ${response.status}`);
+const me = await response.json();
 ```
 
-The package will also provide higher-level list methods for common operations. The native `SPFI` escape hatch will remain available for PnPjs APIs not covered by those helpers.
+Tokens are obtained before every SharePoint/Copilot operation; MSAL handles cache and renewal. The toolkit doesn't retry writes or Copilot turns after authentication failures. PnPjs supplies its native transport retry behavior. Do not log tokens.
 
-## Package design
+A restored single account can be used without a new login. With multiple accounts and no active account, call `getAccounts()` and `selectAccount(homeAccountId)` explicitly. `logout()` signs out the selected account. To reuse your application's MSAL 5 instance, pass `{ msalInstance }` as the second argument to the factory, with matching authentication/callback settings. Do not mix separate bundled copies of MSAL on the same page.
 
-The toolkit is designed to provide a framework-agnostic core that can be used with React, Vue, Next.js, SPFx, and other web applications.
+## SharePoint
 
-Planned package extensions include:
+`getListItems<T>(key)` returns **one server page**, not all items in a large list. `getSharePoint()` exposes native PnPjs with web/list/item extensions:
 
-```text
-@vibe-toolkit/core
-@vibe-toolkit/react
-@vibe-toolkit/next
-@vibe-toolkit/cli
+```ts
+const query = client.getSharePoint().web.lists.getByTitle('Service requests')
+  .items.select('Id', 'Title').top(100);
+for await (const page of query) {
+  // Process each page; avoid collecting an unlimited list in memory.
+}
 ```
 
-## Development
+Additional PnPjs extensions can be imported by npm consumers using the same installed PnP version. CDN consumers need a custom build to include extensions beyond web/list/item. Requests are restricted to the configured origin; redirects are rejected to avoid forwarding tokens elsewhere. Validate SharePoint REST CORS from your deployment origin. If browser access is blocked, use a same-origin backend or a suitable Graph endpoint rather than disabling browser protections.
 
-Clone the repository and install the dependencies:
+## Copilot Studio
 
-```bash
-git clone https://github.com/iguilhermeluis/vibe-toolkit-microsoft.git
-cd vibe-toolkit-microsoft
-npm install
+```ts
+const copilot = client.getCopilot();
+// In a consent button click, if required:
+await client.acquireTokenInteractive([...copilot.scopes]);
+const conversation = await copilot.startConversation();
+const answer = await copilot.sendActivity(
+  { type: 'message', text: 'Hello' }, conversation.conversationId,
+);
+for await (const activity of copilot.sendActivityStreaming(
+  { type: 'message', text: 'Tell me more' }, conversation.conversationId,
+)) {
+  // Render activities using your UI; treat agent content as untrusted content.
+}
 ```
 
-Available scripts:
+Keep the conversation ID with its signed-in user and discard it when switching accounts. Start/send calls fetch a fresh token from the provider. A long-running stream can still fail on network/token expiry; the application controls recovery. `agentId` is a deprecated alias for `schemaName`, not an agent GUID. Existing configurations must now include `environmentId`.
 
-```bash
-npm run build
-npm test
+## Modular imports
+
+```ts
+import { VibeAuthClient } from '@vibe-toolkit/vibe-toolkit-microsoft/auth';
+import { createSharePointClient } from '@vibe-toolkit/vibe-toolkit-microsoft/sharepoint';
+import { VibeCopilotClient } from '@vibe-toolkit/vibe-toolkit-microsoft/copilot';
 ```
 
-## Project status
+SharePoint and Copilot accept a `TokenProvider` with `getAccessToken(scopes): Promise<string>`, so a host application can supply its own supported authentication. Importing only `/auth` excludes PnPjs and Copilot from the application bundle. The main CDN bundle intentionally includes all integrations. CommonJS `require()` is not an advertised entry.
 
-This project is currently under active development. APIs may change before the first stable release.
+## Development and release
 
-## Links
+```sh
+npm ci
+npm run check
+npm run demo
+```
 
-- 📦 [npm package](https://www.npmjs.com/package/@vibe-toolkit/vibe-toolkit-microsoft)
-- 💻 [GitHub repository](https://github.com/iguilhermeluis/vibe-toolkit-microsoft)
-- 🐛 [Report an issue](https://github.com/iguilhermeluis/vibe-toolkit-microsoft/issues)
+Open `http://localhost:8000/demo/msal-login.html` for the tenant test or `/demo/smoke.html` for a credential-free browser smoke test. The demo server serves only demo/build files on loopback and applies callback headers. It is not a production server.
 
-## Author
+`check` validates source/test types, unit and real-PnPjs HTTP tests, browser builds, tarball contents, package exports, a TypeScript consumer, npm browser bundling, CDN IIFE/ESM execution, subpath isolation and integrity hashes. HTTP/authentication boundaries are simulated in automated tests; live Entra, SharePoint CORS and Copilot streaming require your own tenant test before release.
 
-Created and maintained by [Guilherme Luis Faustino](https://github.com/iguilhermeluis).
-
-## License
-
-MIT © [Guilherme Luis Faustino](https://github.com/iguilhermeluis)
+`npm pack` and `npm publish` run these checks through `prepack`. Before publishing, choose an unused version, update CDN examples, run checks with `npm ci` on supported Node versions, and verify the packed artifact. Commit the lockfile for reproducible releases. Published files are allowlisted; third-party license notices and integrity hashes are included in `dist`.
