@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vibe Toolkit Microsoft Demo</title>
+  </head>
+  <body>
+    <pre id="output">Loading...</pre>
+
+    <script type="module">
+      import {
+        VIBE_TOOLKIT_VERSION,
+        createVibeMicrosoftClient,
+      } from "../dist/index.browser.js";
+
+      const client = createVibeMicrosoftClient({
+        auth: {
+          clientId: "application-client-id",
+          tenantId: "directory-tenant-id",
+          redirectUri: "https://app.contoso.com/auth/callback",
+        },
+        sharePoint: {
+          siteUrl: "https://contoso.sharepoint.com/sites/operations",
+          lists: {
+            requests: { name: "Service requests" },
+          },
+        },
+        copilot: {
+          environmentId: "environment-id",
+          schemaName: "agent-schema-name",
+        },
+      });
+
+      const output = {
+        version: VIBE_TOOLKIT_VERSION,
+        listName: client.getList("requests").name,
+      };
+
+      document.getElementById("output").textContent = JSON.stringify(output, null, 2);
+    </script>
+  </body>
+</html>

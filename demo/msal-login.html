@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MSAL Browser Demo</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 820px;
+        margin: 40px auto;
+        padding: 24px;
+      }
+      label {
+        display: block;
+        margin-top: 12px;
+        font-weight: 600;
+      }
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        margin-top: 6px;
+        box-sizing: border-box;
+      }
+      button {
+        margin-top: 18px;
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #f5f5f5;
+        padding: 14px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Vibe Toolkit + MSAL Browser Demo</h1>
+
+    <p>
+      Enter a valid Microsoft Entra client ID and tenant ID to test the sign-in flow.
+      Sign-in cannot work without valid values from your Entra app registration.
+    </p>
+
+    <div>
+      <label>
+        Entra Client ID
+        <input id="clientId" value="00000000-0000-0000-0000-000000000000" />
+      </label>
+
+      <label>
+        Tenant ID
+        <input id="tenantId" value="00000000-0000-0000-0000-000000000000" />
+      </label>
+
+      <label>
+        Redirect URI
+        <input id="redirectUri" value="http://localhost:8000/demo/msal-callback.html" />
+      </label>
+
+      <label>
+        SharePoint Site URL
+        <input id="sharePointSiteUrl" placeholder="https://contoso.sharepoint.com/sites/operations" />
+      </label>
+
+      <label>
+        SharePoint List Name
+        <input id="sharePointListName" placeholder="Service requests" />
+      </label>
+    </div>
+
+    <button id="configureButton" type="button">Prepare configuration</button>
+    <button id="consentButton" type="button" disabled>Authorize SharePoint</button>
+    <button id="readButton" type="button" disabled>Read list</button>
+    <button id="loginButton" disabled>Sign in with Microsoft</button>
+    <button id="logoutButton" type="button">Sign out</button>
+
+    <pre id="output">Waiting for configuration...</pre>
+
+    <script src="../dist/index.global.js"></script>
+    <script src="./msal-login.js"></script>
+  </body>
+</html>
