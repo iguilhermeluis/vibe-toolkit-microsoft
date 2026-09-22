@@ -2,6 +2,7 @@
 src/
 test/
 coverage/
+demo/
 tsconfig.json
 tsup.config.ts
 

@@ -1,6 +1,6 @@
 {
   "name": "@vibe-toolkit/vibe-toolkit-microsoft",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A unified Microsoft toolkit for web applications with Entra ID authentication, Microsoft Graph, SharePoint, PnPjs and Copilot Studio integration.",
   "keywords": [
     "Microsoft",
@@ -34,37 +34,66 @@
   "unpkg": "./dist/index.global.js",
   "jsdelivr": "./dist/index.global.js",
   "types": "./dist/index.d.ts",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/sharepoint.js",
+    "./dist/chunk-*.js",
+    "./dist/index.browser.js",
+    "./dist/index.global.js"
+  ],
   "engines": {
-    "node": ">=18"
+    "node": ">=22.12.0"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js"
+    },
+    "./sharepoint": {
+      "types": "./dist/sharepoint.d.ts",
+      "import": "./dist/sharepoint.js"
+    },
+    "./copilot": {
+      "types": "./dist/copilot.d.ts",
+      "import": "./dist/copilot.js"
+    },
+    "./redirect-bridge": {
+      "types": "./dist/redirect-bridge.d.ts",
+      "import": "./dist/redirect-bridge.js"
+    },
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/build-browser.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepack": "npm run build",
-    "prepublishOnly": "npm run typecheck && npm run test"
+    "prepack": "npm run check",
+    "test:package": "node scripts/test-package.mjs",
+    "check": "npm run typecheck && npm test && npm run build && npm run test:package",
+    "demo": "node scripts/serve-demo.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.22.0",
-    "@microsoft/agents-copilotstudio-client": "^1.8.1",
-    "@pnp/msaljsclient": "^4.21.0",
-    "@pnp/queryable": "^4.21.0",
-    "@pnp/sp": "^4.21.0"
+    "@microsoft/agents-copilotstudio-client": "1.8.1",
+    "@pnp/sp": "4.21.0",
+    "@microsoft/agents-activity": "1.8.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
     "tsup": "^8.5.1",
     "typescript": "^5.7.3",
-    "vitest": "^5.0.1"
-  }
+    "vitest": "^5.0.1",
+    "esbuild": "^0.27.7"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
 }

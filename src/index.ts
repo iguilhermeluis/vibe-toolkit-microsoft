@@ -1,77 +1,53 @@
-export const VIBE_TOOLKIT_VERSION = "0.1.0";
+import packageJson from "../package.json";
+import { VibeAuthClient, type EntraConfiguration, type AuthClientOptions } from "./auth";
+import { createSharePointClient, validateSharePoint, type SharePointConfiguration } from "./sharepoint";
+import { VibeCopilotClient, type CopilotConfiguration } from "./copilot";
+import type { SPFI } from "@pnp/sp";
 
-export interface EntraConfiguration {
-	clientId: string;
-	tenantId: string;
-	redirectUri: string;
-}
-
-export interface SharePointListConfiguration {
-	name: string;
-}
-
-export interface SharePointConfiguration {
-	siteUrl: string;
-	lists?: Record<string, SharePointListConfiguration>;
-}
-
-export interface CopilotConfiguration {
-	agentId: string;
-}
+export * from "./auth";
+export * from "./sharepoint";
+export * from "./copilot";
+export const VIBE_TOOLKIT_VERSION = packageJson.version;
 
 export interface VibeMicrosoftClientConfiguration {
-	auth: EntraConfiguration;
-	sharePoint?: SharePointConfiguration;
-	copilot?: CopilotConfiguration;
+  auth: EntraConfiguration;
+  sharePoint?: SharePointConfiguration;
+  copilot?: CopilotConfiguration;
 }
 
-export class VibeMicrosoftClient {
-	constructor(readonly configuration: VibeMicrosoftClientConfiguration) {}
+export class VibeMicrosoftClient extends VibeAuthClient {
+  private sharePointClient?: SPFI;
+  private copilotClient?: VibeCopilotClient;
 
-	getList(listKey: string): SharePointListConfiguration {
-		const list = this.configuration.sharePoint?.lists?.[listKey];
+  constructor(readonly configuration: VibeMicrosoftClientConfiguration, options?: AuthClientOptions) {
+    super(configuration.auth, options);
+    if (configuration.sharePoint) validateSharePoint(configuration.sharePoint);
+    if (configuration.copilot) this.copilotClient = new VibeCopilotClient(configuration.copilot, this);
+  }
 
-		if (!list) {
-			throw new Error(`SharePoint list "${listKey}" is not configured.`);
-		}
+  getSharePoint(): SPFI {
+    const configuration = this.configuration.sharePoint;
+    if (!configuration) throw new Error("SharePoint is not configured.");
+    return this.sharePointClient ??= createSharePointClient(configuration, this);
+  }
 
-		return list;
-	}
+  getList(listKey: string) {
+    const lists = this.configuration.sharePoint?.lists;
+    if (!lists || !Object.hasOwn(lists, listKey)) throw new Error(`SharePoint list "${listKey}" is not configured.`);
+    return lists[listKey]!;
+  }
+
+  /** Returns one server page. Use getSharePoint() for filters and async pagination. */
+  async getListItems<T = Record<string, unknown>>(listKey: string): Promise<T[]> {
+    return this.getSharePoint().web.lists.getByTitle(this.getList(listKey).name).items<T[]>();
+  }
+
+  getCopilot(): VibeCopilotClient {
+    if (!this.copilotClient) throw new Error("Copilot Studio is not configured.");
+    return this.copilotClient;
+  }
 }
 
-export function createVibeMicrosoftClient(
-	configuration: VibeMicrosoftClientConfiguration,
-): VibeMicrosoftClient {
-	assertNonEmptyValue(configuration.auth.clientId, "auth.clientId");
-	assertNonEmptyValue(configuration.auth.tenantId, "auth.tenantId");
-	assertUrl(configuration.auth.redirectUri, "auth.redirectUri");
-
-	if (configuration.sharePoint) {
-		assertUrl(configuration.sharePoint.siteUrl, "sharePoint.siteUrl");
-
-		for (const [listKey, list] of Object.entries(configuration.sharePoint.lists ?? {})) {
-			assertNonEmptyValue(listKey, "sharePoint list key");
-			assertNonEmptyValue(list.name, `sharePoint.lists.${listKey}.name`);
-		}
-	}
-
-	if (configuration.copilot) {
-		assertNonEmptyValue(configuration.copilot.agentId, "copilot.agentId");
-	}
-
-	return new VibeMicrosoftClient(configuration);
-}
-
-function assertNonEmptyValue(value: string, configurationKey: string): void {
-	if (!value.trim()) {
-		throw new Error(`Configuration value "${configurationKey}" is required.`);
-	}
-}
-
-function assertUrl(value: string, configurationKey: string): void {
-	try {
-		new URL(value);
-	} catch {
-		throw new Error(`Configuration value "${configurationKey}" must be a valid URL.`);
-	}
+export function createVibeMicrosoftClient(configuration: VibeMicrosoftClientConfiguration, options?: AuthClientOptions) {
+  return new VibeMicrosoftClient(configuration, options);
 }
